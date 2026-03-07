@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>سوبر توفير - مسابقة البريد المصري</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- التصميم البصري الصارم للبريد المصري --- */
+        :root {
+            --post-green: #049861; /* Updated Campaign Green */
+            --post-dark-green: #036F47; 
+            --post-white: #ffffff;
+            --post-red: #D21034; 
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--post-green);
+            color: var(--post-white);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            max-height: 900px;
+            background-color: var(--post-green);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        header { margin-bottom: 25px; width: 100%; }
+        h1 { font-weight: 700; font-size: 1.8rem; margin-bottom: 5px; }
+        p.subtitle { font-weight: 700; font-size: 1.1rem; line-height: 1.5; padding: 0 10px; }
+        .hint-text { font-size: 0.9rem; font-weight: 300; opacity: 0.9; margin-top: 5px; }
+
+        /* --- حاوية العجلة --- */
+        .wheel-wrapper {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .needle {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0; 
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid var(--post-red);
+            z-index: 10;
+            filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.3));
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 6px solid var(--post-white);
+            box-shadow: 0 0 0 4px var(--post-dark-green), 0 10px 20px rgba(0,0,0,0.15);
+        }
+
+        /* --- الأزرار والتحكم --- */
+        .controls { margin-top: 20px; width: 100%; }
+        .try-info { font-weight: 700; font-size: 1.1rem; margin-bottom: 15px; min-height: 25px;}
+
+        button.action-btn {
+            background-color: var(--post-white);
+            color: var(--post-green);
+            border: 2px solid var(--post-dark-green);
+            border-radius: 8px;
+            padding: 15px 40px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s;
+            width: 85%;
+            box-shadow: 0 4px 0 var(--post-dark-green);
+            margin-bottom: 10px;
+        }
+
+        button.action-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 var(--post-dark-green);
+        }
+
+        button.action-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: translateY(4px);
+            box-shadow: 0 0 0 var(--post-dark-green);
+        }
+
+        button.outline-btn {
+            background-color: transparent;
+            color: var(--post-white);
+            border: 2px solid var(--post-white);
+            box-shadow: none;
+        }
+        button.outline-btn:active {
+            background-color: rgba(255,255,255,0.1);
+            transform: translateY(2px);
+        }
+
+        /* --- الشاشات (Views) --- */
+        .view { display: none; width: 100%; flex-direction: column; align-items: center; }
+        .view.active { display: flex; animation: fadeIn 0.4s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- شاشة التسجيل --- */
+        .input-group { margin-bottom: 20px; width: 100%; text-align: right; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 700; }
+        .input-group input {
+            width: 100%; padding: 14px;
+            border: 2px solid var(--post-white); border-radius: 8px;
+            background-color: transparent; color: var(--post-white);
+            font-family: 'Cairo', sans-serif; font-size: 1rem; outline: none;
+        }
+        .input-group input:focus { background-color: rgba(255,255,255,0.1); }
+        .input-group input::placeholder { color: rgba(255,255,255,0.6); }
+        .error-msg { color: #ffcccc; font-size: 0.85rem; margin-top: 5px; display: none; font-weight: 700;}
+
+        /* --- شاشة النتيجة (Popup للمحاولات) --- */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; z-index: 20; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease; padding: 25px;
+        }
+        .overlay.active { opacity: 1; pointer-events: all; }
+        .overlay h2 { font-weight: 700; font-size: 2.2rem; color: var(--post-green); margin-bottom: 10px; }
+        .overlay p { font-weight: 700; font-size: 1.2rem; color: var(--post-dark-green); margin-bottom: 25px; line-height: 1.6; white-space: pre-line; }
+        
+        /* --- شاشات النهاية (Final States) --- */
+        .final-view {
+            background-color: var(--post-white); 
+            color: var(--post-green); 
+            height: 100vh; 
+            justify-content: center;
+            padding: 30px;
+        }
+        .final-view h2 { font-size: 2.2rem; margin-bottom: 15px; }
+        .final-view p.main-msg { font-size: 1.2rem; margin-bottom: 25px; font-weight: 700; color: var(--post-dark-green); line-height: 1.6;}
+        .final-view .cta-container { width: 100%; margin-top: 20px; }
+        .final-view .action-btn { width: 100%; background-color: var(--post-green); color: var(--post-white); }
+        /* Fix for outline-btn visibility inside final-view */
+        .final-view .outline-btn { background-color: var(--post-green); color: var(--post-white); border-color: var(--post-dark-green); }
+        .pending-sync-note { display: none; color: var(--post-red); font-size: 0.9rem; font-weight: 700; margin-top: 15px; background: rgba(210,16,52,0.1); padding: 10px; border-radius: 8px;}
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(4, 152, 97, 0.9); z-index: 50; /* Updated green rgba */
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .loader-overlay.active { display: flex; }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid var(--post-white);
+            border-top: 4px solid transparent; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* CAMPAIGN SPLASH FEATURE - CSS ADDITIONS */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('assets/campaign-splash.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.1; /* 10% opacity */
+            z-index: -1;
+            pointer-events: none;
+        }
+        .game-container {
+            background-color: transparent !important; /* Allow background to show through the main container */
+        }
+        .final-view {
+            /* Make white background slightly transparent so the background pattern stays visible behind win/lose screens */
+            background-color: rgba(255, 255, 255, 0.85) !important;
+        }
+        .campaign-splash {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--post-green);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            transition: opacity 0.5s ease;
+        }
+        .campaign-splash img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- CAMPAIGN SPLASH FEATURE -->
+<div id="campaignSplashScreen" class="campaign-splash">
+    <img src="assets/campaign-splash.png" alt="Campaign Splash Screen">
+</div>
+
+<div class="game-container">
+    
+    <!-- Loader -->
+    <div id="loaderOverlay" class="loader-overlay">
+        <div class="spinner"></div>
+        <p id="loaderText">جاري المعالجة...</p>
+    </div>
+
+    <!-- 1. شاشة التسجيل -->
+    <div id="view_registration" class="view active">
+        <header>
+            <h1>سوبر توفير</h1>
+            <p class="subtitle">مسابقة البريد المصري بمناسبة شهر رمضان 🌙</p>
+            <p class="hint-text">سجل بياناتك لدخول التحدي والسحب</p>
+        </header>
+        <form id="leadForm" style="width: 100%; max-width: 320px;" novalidate>
+            <div class="input-group">
+                <label for="userName">الاسم ثلاثي</label>
+                <input type="text" id="userName" placeholder="محمد أحمد محمود">
+                <div class="error-msg" id="nameError">برجاء إدخال اسم ثلاثي صحيح (حروف فقط)</div>
+            </div>
+            <div class="input-group">
+                <label for="userPhone">رقم الموبايل</label>
+                <input type="tel" id="userPhone" placeholder="01xxxxxxxxx" inputmode="numeric">
+                <div class="error-msg" id="phoneError">برجاء إدخال رقم موبايل مصري صحيح (11 رقم)</div>
+            </div>
+            <button type="submit" class="action-btn" style="width: 100%; margin-top: 10px;">ابدأ التحدي</button>
+            <p class="hint-text" style="margin-top:20px; font-size:0.8rem;">* البيانات تُستخدم للتواصل مع الفائزين فقط وتخضع لشروط البريد المصري.</p>
+        </form>
+    </div>
+
+    <!-- 2. شاشة اللعب -->
+    <div id="view_game" class="view">
+        <header>
+            <h1>سوبر توفير</h1>
+            <p class="subtitle">وقّف العجلة على العائد الشهري الصح!</p>
+        </header>
+        
+        <div class="wheel-wrapper">
+            <div class="needle"></div>
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="try-info" id="tryText">المحاولة: 1 / 3</div>
+            <button class="action-btn" id="spinBtn">لف العجلة!</button>
+        </div>
+
+        <!-- رسالة مؤقتة بين المحاولات الخاطئة -->
+        <div class="overlay" id="roundResultOverlay">
+            <h2 id="roundTitle">...</h2>
+            <p id="roundMsg">...</p>
+            <button class="action-btn" id="nextRoundBtn" style="color:var(--post-green)">أكمل</button>
+        </div>
+    </div>
+
+    <!-- 3. شاشة النهاية: فوز -->
+    <div id="view_final_win" class="view final-view">
+        <h2>مبروك يا بطل! 🏆</h2>
+        <p class="main-msg">الإجابة صحيحة (14%)<br>تم تسجيل بياناتك لدخول السحب على تيكت كيدزانيا. هنتواصل معاك قريباً!</p>
+        
+        <div class="cta-container">
+            <button class="action-btn" onclick="window.open('https://www.egyptpost.org', '_blank')">اعرف أكتر عن سوبر توفير</button>
+            <button class="action-btn outline-btn" id="shareWinBtn">مشاركة النتيجة</button>
+        </div>
+        <p id="winPendingNote" class="pending-sync-note">⚠️ مشاركتك محفوظة محلياً وسيتم مزامنتها تلقائياً عند استقرار الاتصال.</p>
+        <p class="hint-text" style="color: var(--post-dark-green); margin-top: 20px;">البريد المصري.. بيكسبك في شهر الخير 🌙</p>
+    </div>
+
+    <!-- 4. شاشة النهاية: خسارة -->
+    <div id="view_final_lose" class="view final-view">
+        <h2>حظ أوفر! 😔</h2>
+        <p class="main-msg">خلصت محاولاتك للأسف.<br>الإجابة الصحيحة كانت 14% العائد الشهري من حساب سوبر توفير.</p>
+        
+        <div class="cta-container">
+            <button class="action-btn" onclick="window.open('https://www.egyptpost.org', '_blank')">افتح حساب سوبر توفير الآن</button>
+        </div>
+        <p id="losePendingNote" class="pending-sync-note">⚠️ نتيجتك محفوظة محلياً وسيتم مزامنتها تلقائياً عند استقرار الاتصال.</p>
+        <p class="hint-text" style="color: var(--post-dark-green); margin-top: 20px;">البريد المصري.. بيكسبك في شهر الخير 🌙</p>
+    </div>
+
+</div>
+
+<script>
+    /**
+     * ==========================================
+     * 1. CONFIGURATION & CONSTANTS
+     * ==========================================
+     */
+    const CONFIG = {
+        colors: { green: '#049861', darkGreen: '#036F47', white: '#ffffff' }, // Updated Campaign Green & Dark Green
+        segments: ["12.5%", "14%", "17.75%", "10%"],
+        winIndex: 1, // "14%"
+        maxTries: 3,
+        initialSpeed: 0.12,
+        friction: 0.96, // Deceleration physics
+        
+        // --- PRODUCTION API ENDPOINT ---
+        apiEndpointSubmit: "https://script.google.com/macros/s/AKfycbz_2G1V-HmpIdCeY8cdZcUKZjigFd5ZZ3YfHmOm0hFZadFRdealN3WPUltgvDG8encQJw/exec",
+        
+        useMockApiForDev: false 
+    };
+
+    /**
+     * ==========================================
+     * 2. ANALYTICS ENGINE (DataLayer)
+     * ==========================================
+     */
+    window.dataLayer = window.dataLayer || [];
+    const Analytics = {
+        track: (eventName, payload = {}) => {
+            const eventData = { event: eventName, timestamp: new Date().toISOString(), ...payload };
+            window.dataLayer.push(eventData);
+            console.log(`[Analytics] ${eventName}`, payload);
+        }
+    };
+
+    /**
+     * ==========================================
+     * 3. DATA & SESSION MANAGEMENT
+     * ==========================================
+     */
+    const STORAGE_KEY = 'post_campaign_session';
+    const PENDING_SUBMISSION_KEY = 'post_pending_submission';
+
+    function generateUUID() {
+        return typeof crypto !== 'undefined' && crypto.randomUUID 
+            ? crypto.randomUUID() 
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+    }
+
+    let APP_STATE = {
+        view: 'view_registration', 
+        user: { name: "", phone: "" },
+        tries: 0,
+        result: null, 
+        sessionId: null, 
+        round_values: [], 
+        isPendingSync: false
+    };
+
+    function saveSession() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(APP_STATE));
+    }
+
+    function loadSession() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            APP_STATE = JSON.parse(saved);
+        }
+    }
+
+    /**
+     * ==========================================
+     * 4. DATA VALIDATION & NORMALIZATION
+     * ==========================================
+     */
+    const Validator = {
+        normalizeArabicNumbers: (str) => {
+            const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return str.replace(/[٠-٩]/g, w => arabicNumbers.indexOf(w)).trim();
+        },
+        cleanName: (name) => {
+            return name.replace(/\s+/g, ' ').trim();
+        },
+        isValidName: (name) => {
+            const clean = Validator.cleanName(name);
+            const hasValidChars = /^[\u0600-\u06FFa-zA-Z\s]+$/.test(clean);
+            return hasValidChars && clean.split(' ').length >= 3; 
+        },
+        isValidEgyptianPhone: (phone) => {
+            const normalized = Validator.normalizeArabicNumbers(phone);
+            return /^01[0125][0-9]{8}$/.test(normalized);
+        }
+    };
+
+    /**
+     * ==========================================
+     * 5. BACKEND SUBMISSION (API)
+     * ==========================================
+     */
+    const API = {
+        async submitResult(payload) {
+            if (CONFIG.useMockApiForDev) return { success: true };
+
+            try {
+                const response = await fetch(CONFIG.apiEndpointSubmit, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    // Using text/plain to avoid CORS preflight (OPTIONS) issues with Google Apps Script
+                    // The Apps Script will still parse JSON.parse(e.postData.contents) successfully.
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+                });
+                if (!response.ok) throw new Error("Network response was not ok");
+                return await response.json();
+            } catch (error) {
+                throw error; 
+            }
+        },
+
+        async handlePendingSubmissions() {
+            const pending = localStorage.getItem(PENDING_SUBMISSION_KEY);
+            if (pending) {
+                Analytics.track('submission_retried');
+                try {
+                    await API.submitResult(JSON.parse(pending));
+                    localStorage.removeItem(PENDING_SUBMISSION_KEY);
+                    APP_STATE.isPendingSync = false;
+                    saveSession();
+                    Analytics.track('submission_retry_success');
+                    console.log("Pending submission sent successfully.");
+                } catch (e) {
+                    console.log("Pending submission retry failed again.");
+                }
+            }
+        }
+    };
+
+    /**
+     * ==========================================
+     * 6. CENTRALIZED UI RENDERING (State Machine)
+     * ==========================================
+     */
+    function transitionTo(viewId) {
+        APP_STATE.view = viewId;
+        saveSession();
+        
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+
+        if (viewId === 'view_game') {
+            renderGameControls();
+        } else if (viewId === 'view_final_win' || viewId === 'view_final_lose') {
+            const noteId = viewId === 'view_final_win' ? 'winPendingNote' : 'losePendingNote';
+            document.getElementById(noteId).style.display = APP_STATE.isPendingSync ? 'block' : 'none';
+        }
+    }
+
+    function showLoader(text = "جاري المعالجة...") {
+        document.getElementById('loaderText').innerText = text;
+        document.getElementById('loaderOverlay').classList.add('active');
+    }
+
+    function hideLoader() {
+        document.getElementById('loaderOverlay').classList.remove('active');
+    }
+
+    /**
+     * ==========================================
+     * 7. GAME ENGINE & LOGIC
+     * ==========================================
+     */
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const numSegments = CONFIG.segments.length;
+    const segmentAngle = (Math.PI * 2) / numSegments;
+
+    let currentAngle = 0;
+    let currentSpeed = 0;
+    let animationId = null;
+    let wheelState = "IDLE"; 
+
+    function resetWheelState() {
+        wheelState = "IDLE";
+        currentSpeed = 0;
+        if(animationId) cancelAnimationFrame(animationId);
+        drawWheel();
+        renderGameControls();
+    }
+
+    function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const radius = canvas.width / 2 - 10;
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(currentAngle);
+
+        for (let i = 0; i < numSegments; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, radius, i * segmentAngle, (i + 1) * segmentAngle);
+            ctx.closePath();
+
+            ctx.fillStyle = (i % 2 === 0) ? CONFIG.colors.white : CONFIG.colors.green;
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = CONFIG.colors.darkGreen;
+            ctx.stroke();
+
+            ctx.save();
+            ctx.rotate(i * segmentAngle + segmentAngle / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = (i % 2 === 0) ? CONFIG.colors.green : CONFIG.colors.white;
+            ctx.font = "bold 34px 'Cairo'";
+            ctx.fillText(CONFIG.segments[i], radius - 35, 12);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    function getHitSegment() {
+        let normalizedAngle = (-Math.PI / 2 - currentAngle) % (Math.PI * 2);
+        if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
+        return Math.floor(normalizedAngle / segmentAngle) % numSegments;
+    }
+
+    function loop() {
+        if (wheelState === "SPINNING" || wheelState === "DECELERATING") {
+            currentAngle += currentSpeed;
+            
+            if (wheelState === "DECELERATING") {
+                currentSpeed *= CONFIG.friction; 
+                if (currentSpeed < 0.002) {
+                    currentSpeed = 0;
+                    wheelState = "IDLE";
+                    handleSpinStop(); 
+                    return; 
+                }
+            }
+            drawWheel();
+            animationId = requestAnimationFrame(loop);
+        }
+    }
+
+    function renderGameControls() {
+        const tryText = document.getElementById('tryText');
+        const spinBtn = document.getElementById('spinBtn');
+        
+        const textMap = {
+            1: "المحاولة الأولى.. ركز في الـ 14%",
+            2: "ركز أكتر.. دي المحاولة التانية!",
+            3: "الفرصة الأخيرة يا بطل!"
+        };
+        tryText.innerText = textMap[APP_STATE.tries + 1] || "";
+        
+        if (wheelState === "IDLE") {
+            spinBtn.innerText = "لف العجلة!";
+            spinBtn.disabled = false;
+        } else if (wheelState === "SPINNING") {
+            spinBtn.innerText = "وقّف العجلة!";
+            spinBtn.disabled = false;
+        } else if (wheelState === "DECELERATING") {
+            spinBtn.innerText = "جاري التوقف...";
+            spinBtn.disabled = true;
+        }
+    }
+
+    document.getElementById('spinBtn').addEventListener('click', () => {
+        if (wheelState === "IDLE") {
+            wheelState = "SPINNING";
+            currentSpeed = CONFIG.initialSpeed;
+            Analytics.track('spin_started', { try_number: APP_STATE.tries + 1, session_id: APP_STATE.sessionId });
+            renderGameControls();
+            loop();
+        } else if (wheelState === "SPINNING") {
+            wheelState = "DECELERATING";
+            Analytics.track('spin_stop_requested', { session_id: APP_STATE.sessionId });
+            renderGameControls();
+        }
+    });
+
+    function handleSpinStop() {
+        APP_STATE.tries++;
+        const hit = getHitSegment();
+        const hitValue = CONFIG.segments[hit];
+        const isWin = (hit === CONFIG.winIndex);
+        
+        if (!APP_STATE.round_values) APP_STATE.round_values = [];
+        APP_STATE.round_values.push(hitValue);
+
+        if (isWin) {
+            APP_STATE.result = 'WIN';
+            finalizeGameFlow();
+        } else {
+            Analytics.track('round_lost', { try_used: APP_STATE.tries, hit_value: hitValue, session_id: APP_STATE.sessionId });
+            
+            if (APP_STATE.tries >= CONFIG.maxTries) {
+                APP_STATE.result = 'LOSE';
+                finalizeGameFlow();
+            } else {
+                saveSession();
+                showRoundResultOverlay(`غلط! 😅`, `النسبة اللي وقفت عليها هي ${hitValue}.\nحاول تاني وركز في 14%.`);
+                renderGameControls();
+            }
+        }
+    }
+
+    function showRoundResultOverlay(title, msg) {
+        document.getElementById('roundTitle').innerText = title;
+        document.getElementById('roundMsg').innerText = msg;
+        document.getElementById('roundResultOverlay').classList.add('active');
+    }
+
+    document.getElementById('nextRoundBtn').addEventListener('click', () => {
+        document.getElementById('roundResultOverlay').classList.remove('active');
+    });
+
+    /**
+     * ==========================================
+     * 8. FINAL FLOW & SERVER SYNC (Data Collection)
+     * ==========================================
+     */
+    async function finalizeGameFlow() {
+        Analytics.track('game_completed', { result: APP_STATE.result, tries: APP_STATE.tries, session_id: APP_STATE.sessionId });
+        
+        const isMobile = /Mobile|Android|iP(ad|hone)/.test(navigator.userAgent);
+        const deviceType = isMobile ? 'Mobile' : 'Desktop';
+        const isFirstTryWin = APP_STATE.result === 'WIN' && APP_STATE.tries === 1;
+        
+        const payload = {
+            timestamp: new Date().toISOString(),
+            session_id: APP_STATE.sessionId,
+            name: APP_STATE.user.name,
+            phone: APP_STATE.user.phone,
+            result: APP_STATE.result,
+            tries_used: APP_STATE.tries,
+            first_try_win: isFirstTryWin,
+            completed: true,
+            lost_round_1_value: APP_STATE.round_values[0] || "",
+            lost_round_2_value: APP_STATE.round_values[1] || "",
+            lost_round_3_value: APP_STATE.round_values[2] || "",
+            device_type: deviceType,
+            source: 'web_campaign'
+        };
+
+        showLoader("جاري حفظ النتيجة...");
+        APP_STATE.isPendingSync = false;
+        
+        try {
+            await API.submitResult(payload);
+            Analytics.track(APP_STATE.result === 'WIN' ? 'winner_recorded' : 'loser_recorded', { session_id: APP_STATE.sessionId });
+            localStorage.removeItem(PENDING_SUBMISSION_KEY); 
+        } catch (error) {
+            Analytics.track('submission_failed', { error: error.message, session_id: APP_STATE.sessionId });
+            APP_STATE.isPendingSync = true;
+            localStorage.setItem(PENDING_SUBMISSION_KEY, JSON.stringify(payload));
+        }
+
+        saveSession();
+        hideLoader();
+        
+        if (APP_STATE.result === 'WIN') {
+            transitionTo('view_final_win');
+        } else {
+            transitionTo('view_final_lose');
+        }
+    }
+
+    /**
+     * ==========================================
+     * 9. FORM SUBMISSION & VALIDATION
+     * ==========================================
+     */
+    document.getElementById('leadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const rawName = document.getElementById('userName').value;
+        const rawPhone = document.getElementById('userPhone').value;
+        
+        const nameValid = Validator.isValidName(rawName);
+        const phoneValid = Validator.isValidEgyptianPhone(rawPhone);
+        
+        document.getElementById('nameError').style.display = nameValid ? 'none' : 'block';
+        document.getElementById('phoneError').style.display = phoneValid ? 'none' : 'block';
+        
+        if (!nameValid || !phoneValid) return;
+
+        const cleanName = Validator.cleanName(rawName);
+        const cleanPhone = Validator.normalizeArabicNumbers(rawPhone);
+
+        Analytics.track('registration_submitted', { phone_length: cleanPhone.length });
+        
+        APP_STATE.sessionId = generateUUID(); 
+        APP_STATE.user = { name: cleanName, phone: cleanPhone };
+        APP_STATE.tries = 0;
+        APP_STATE.round_values = []; 
+        saveSession();
+        
+        Analytics.track('game_started', { session_id: APP_STATE.sessionId });
+        transitionTo('view_game');
+        resetWheelState();
+    });
+
+    /**
+     * ==========================================
+     * 10. BOOTSTRAPPER (Init)
+     * ==========================================
+     */
+    document.getElementById('shareWinBtn').addEventListener('click', async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'كسبت في سوبر توفير!',
+                    text: 'أنا جبت 14% في تحدي البريد المصري! العبها انت كمان 🌙',
+                    url: window.location.href
+                });
+            } catch (err) {
+                console.log("Share failed", err);
+            }
+        }
+    });
+
+    window.onload = () => {
+        // CAMPAIGN SPLASH FEATURE
+        setTimeout(() => {
+            const splash = document.getElementById('campaignSplashScreen');
+            if(splash) {
+                splash.style.opacity = '0';
+                setTimeout(() => splash.style.display = 'none', 500);
+            }
+        }, 2000);
+
+        Analytics.track('landing_viewed');
+        API.handlePendingSubmissions(); 
+        loadSession();
+        
+        if (APP_STATE.view === 'view_registration') {
+            transitionTo('view_registration');
+        } else if (APP_STATE.view === 'view_game') {
+            Analytics.track('game_resumed', { tries_left: CONFIG.maxTries - APP_STATE.tries, session_id: APP_STATE.sessionId });
+            transitionTo('view_game');
+            resetWheelState(); 
+        } else if (APP_STATE.view === 'view_final_win') {
+            transitionTo('view_final_win');
+        } else if (APP_STATE.view === 'view_final_lose') {
+            transitionTo('view_final_lose');
+        } else {
+            transitionTo('view_registration');
+        }
+    };
+
+</script>
+</body>
+</html>
